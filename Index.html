@@ -1,0 +1,442 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#4f46e5">
+<title>AI Study Planner</title>
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;
+ font-family:Arial,sans-serif;
+ background:#f1f5f9;
+ color:#1e293b;
+}
+header{
+ background:linear-gradient(120deg,#312e81,#6366f1);
+ color:white;
+ padding:30px 15px;
+ text-align:center;
+}
+header h1{margin:0 0 10px}
+header p{margin:0;color:#e0e7ff}
+main{
+ max-width:850px;
+ margin:25px auto;
+ padding:0 15px;
+}
+.card{
+ background:white;
+ padding:22px;
+ border-radius:16px;
+ margin-bottom:20px;
+ box-shadow:0 5px 18px #0000000d;
+}
+h2{font-size:21px;margin-top:0}
+input,select{
+ width:100%;
+ padding:13px;
+ margin:7px 0;
+ border:1px solid #cbd5e1;
+ border-radius:9px;
+ font-size:15px;
+ background:white;
+}
+button{
+ border:0;
+ padding:12px 18px;
+ border-radius:9px;
+ cursor:pointer;
+ font-weight:bold;
+ font-size:14px;
+}
+.primary{
+ background:#4f46e5;
+ color:white;
+ width:100%;
+ margin-top:10px;
+}
+.danger{
+ background:#fee2e2;
+ color:#b91c1c;
+}
+.success{
+ background:#dcfce7;
+ color:#166534;
+}
+.task{
+ display:flex;
+ align-items:center;
+ justify-content:space-between;
+ gap:10px;
+ padding:14px 0;
+ border-bottom:1px solid #e2e8f0;
+}
+.task:last-child{border:0}
+.task-info{flex:1;min-width:0}
+.task-info strong{
+ display:block;
+ overflow-wrap:anywhere;
+}
+.task-info small{
+ color:#64748b;
+ display:block;
+ margin-top:5px;
+}
+.task.done strong{
+ text-decoration:line-through;
+ color:#64748b;
+}
+.actions{
+ display:flex;
+ gap:6px;
+ flex-wrap:wrap;
+}
+.stats{
+ display:grid;
+ grid-template-columns:repeat(3,1fr);
+ gap:10px;
+}
+.stat{
+ background:#eef2ff;
+ text-align:center;
+ padding:17px 5px;
+ border-radius:12px;
+}
+.stat b{
+ font-size:25px;
+ display:block;
+ color:#4338ca;
+}
+.stat span{font-size:12px}
+.progress{
+ background:#e2e8f0;
+ border-radius:20px;
+ height:14px;
+ overflow:hidden;
+}
+#progressBar{
+ background:#22c55e;
+ height:100%;
+ width:0%;
+ transition:width .3s;
+}
+.empty{
+ text-align:center;
+ color:#64748b;
+ padding:15px;
+}
+footer{
+ text-align:center;
+ padding:20px;
+ color:#64748b;
+}
+@media(max-width:450px){
+ .card{padding:16px}
+ .task{align-items:flex-start}
+ .actions{flex-direction:column}
+ .actions button{padding:9px}
+}
+</style>
+</head>
+<body>
+
+<header>
+<h1>📚 AI Study Planner</h1>
+<p>Plan Smart • Study Better • Achieve More</p>
+</header>
+
+<main>
+
+<section class="card">
+<h2>📊 Study Dashboard</h2>
+<div class="stats">
+<div class="stat">
+<b id="total">0</b>
+<span>Total Tasks</span>
+</div>
+<div class="stat">
+<b id="completed">0</b>
+<span>Completed</span>
+</div>
+<div class="stat">
+<b id="pending">0</b>
+<span>Pending</span>
+</div>
+</div>
+<h3>Overall Progress</h3>
+<div class="progress">
+<div id="progressBar"></div>
+</div>
+<p id="progressText">0% completed</p>
+</section>
+
+<section class="card">
+<h2>➕ Add Study Task</h2>
+<form id="taskForm">
+<label for="subject">Subject</label>
+<select id="subject" required>
+<option value="">Select Subject</option>
+<option>Quantitative Aptitude</option>
+<option>Reasoning</option>
+<option>English</option>
+<option>General Awareness</option>
+<option>Science</option>
+<option>Mathematics</option>
+<option>Other</option>
+</select>
+
+<label for="taskName">Study Goal</label>
+<input id="taskName"
+ placeholder="Example: Practice 30 maths questions"
+ maxlength="150" required>
+
+<label for="studyDate">Study Date</label>
+<input type="date" id="studyDate" required>
+
+<label for="studyTime">Study Time</label>
+<input type="time" id="studyTime" required>
+
+<button class="primary" type="submit">
+Add to Study Plan
+</button>
+</form>
+</section>
+
+<section class="card">
+<h2>📅 My Study Schedule</h2>
+<label for="filter">Filter Tasks</label>
+<select id="filter">
+<option value="all">All Tasks</option>
+<option value="today">Today's Tasks</option>
+<option value="pending">Pending Tasks</option>
+<option value="done">Completed Tasks</option>
+</select>
+<div id="taskList"></div>
+</section>
+
+<section class="card">
+<h2>🎯 Daily Motivation</h2>
+<p id="quote"></p>
+<button class="primary" id="quoteButton">
+New Motivation
+</button>
+</section>
+
+<section class="card">
+<h2>💾 Your Data</h2>
+<p>
+Your study tasks are saved automatically in
+this browser using local storage.
+</p>
+<button class="danger" id="clearButton">
+Clear All Tasks
+</button>
+</section>
+
+</main>
+
+<footer>
+AI Study Planner © 2026
+<br>
+Built with HTML, CSS and JavaScript
+</footer>
+
+<script>
+"use strict";
+
+const STORAGE_KEY="ai-study-planner-tasks-v1";
+
+function loadTasks(){
+ try{
+  const saved=JSON.parse(
+   localStorage.getItem(STORAGE_KEY)||"[]"
+  );
+  return Array.isArray(saved)?saved:[];
+ }catch(error){
+  return [];
+ }
+}
+
+let tasks=loadTasks();
+
+const $=id=>document.getElementById(id);
+
+function saveTasks(){
+ try{
+  localStorage.setItem(
+   STORAGE_KEY,
+   JSON.stringify(tasks)
+  );
+ }catch(error){
+  alert("Unable to save. Check browser storage.");
+ }
+}
+
+function todayString(){
+ const d=new Date();
+ const year=d.getFullYear();
+ const month=String(d.getMonth()+1).padStart(2,"0");
+ const day=String(d.getDate()).padStart(2,"0");
+ return `${year}-${month}-${day}`;
+}
+
+$("studyDate").value=todayString();
+
+$("taskForm").addEventListener("submit",function(e){
+ e.preventDefault();
+
+ const subject=$("subject").value;
+ const name=$("taskName").value.trim();
+ const date=$("studyDate").value;
+ const time=$("studyTime").value;
+
+ if(!subject||!name||!date||!time){
+  alert("Please complete all fields.");
+  return;
+ }
+
+ const task={
+  id:Date.now().toString(36)+
+     Math.random().toString(36).slice(2),
+  subject,
+  name,
+  date,
+  time,
+  done:false
+ };
+
+ tasks.push(task);
+ saveTasks();
+ render();
+ this.reset();
+ $("studyDate").value=todayString();
+});
+
+function toggleTask(id){
+ const task=tasks.find(t=>t.id===id);
+ if(!task)return;
+ task.done=!task.done;
+ saveTasks();
+ render();
+}
+
+function deleteTask(id){
+ if(!confirm("Delete this task?"))return;
+ tasks=tasks.filter(t=>t.id!==id);
+ saveTasks();
+ render();
+}
+
+function render(){
+ const total=tasks.length;
+ const completed=tasks.filter(t=>t.done).length;
+ const pending=total-completed;
+ const percent=total?
+  Math.round(completed/total*100):0;
+
+ $("total").textContent=total;
+ $("completed").textContent=completed;
+ $("pending").textContent=pending;
+ $("progressBar").style.width=percent+"%";
+ $("progressText").textContent=
+  percent+"% completed";
+
+ const filter=$("filter").value;
+ const today=todayString();
+
+ const filtered=tasks.filter(t=>{
+  if(filter==="today")return t.date===today;
+  if(filter==="pending")return !t.done;
+  if(filter==="done")return t.done;
+  return true;
+ }).sort((a,b)=>
+  (a.date+" "+a.time).localeCompare(
+   b.date+" "+b.time
+  )
+ );
+
+ const list=$("taskList");
+ list.replaceChildren();
+
+ if(filtered.length===0){
+  const empty=document.createElement("p");
+  empty.className="empty";
+  empty.textContent="No study tasks found.";
+  list.appendChild(empty);
+  return;
+ }
+
+ filtered.forEach(task=>{
+  const row=document.createElement("div");
+  row.className="task"+(task.done?" done":"");
+
+  const info=document.createElement("div");
+  info.className="task-info";
+
+  const title=document.createElement("strong");
+  title.textContent=task.name;
+
+  const details=document.createElement("small");
+  details.textContent=
+   `${task.subject} | ${task.date} | ${task.time}`;
+
+  info.append(title,details);
+
+  const actions=document.createElement("div");
+  actions.className="actions";
+
+  const toggle=document.createElement("button");
+  toggle.className="success";
+  toggle.textContent=task.done?"Undo":"Done";
+  toggle.onclick=()=>toggleTask(task.id);
+
+  const remove=document.createElement("button");
+  remove.className="danger";
+  remove.textContent="Delete";
+  remove.onclick=()=>deleteTask(task.id);
+
+  actions.append(toggle,remove);
+  row.append(info,actions);
+  list.appendChild(row);
+ });
+}
+
+$("filter").addEventListener("change",render);
+
+$("clearButton").addEventListener("click",()=>{
+ if(!tasks.length)return;
+ if(confirm("Delete all study tasks?")){
+  tasks=[];
+  saveTasks();
+  render();
+ }
+});
+
+const quotes=[
+ "Small progress every day leads to big results.",
+ "Consistency is more important than perfection.",
+ "Focus on learning, not just marks.",
+ "Every practice session makes you stronger.",
+ "Your future is built by what you do today.",
+ "Take breaks, stay curious and keep learning."
+];
+
+let quoteIndex=0;
+
+function newQuote(){
+ $("quote").textContent=quotes[quoteIndex];
+ quoteIndex=(quoteIndex+1)%quotes.length;
+}
+
+$("quoteButton").addEventListener("click",newQuote);
+
+newQuote();
+render();
+</script>
+
+</body>
+  </html>
+  
